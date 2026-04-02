@@ -22,7 +22,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 
 export const getDiagnosis = async (req, res) => {
-  console.log("diagnosis runs");
+  // console.log("diagnosis runs");
 
   try {
     const { symptoms, age, gender, duration } = req.body;
@@ -104,14 +104,7 @@ Provide diagnosis.
     }
 
     const output = data.choices?.[0]?.message?.content;
-    console.log(output)
-    // 🔥 Safe JSON parsing
-    // let parsed;
-    // try {
-    //   parsed = await JSON.parse(output);
-    // } catch (err) {
-    //   parsed = { raw: output }; // fallback
-    // }
+    // console.log(output)
 
     let parsed;
 
@@ -128,7 +121,7 @@ try {
   parsed = JSON.parse(clean);
 
 } catch (err) {
-  console.error("❌ Parsing failed:", err.message);
+  // console.error("❌ Parsing failed:", err.message);
 
   parsed = {
     raw: output,
@@ -140,7 +133,7 @@ try {
 }
 
     // ✅ SAVE TO DATABASE (only if valid structure)
-    console.log("at first step",parsed)
+    // console.log("at first step",parsed)
     if (parsed?.possible_conditions) {
       await Diagnosis.create({
         symptoms,
@@ -161,7 +154,7 @@ try {
     });
 
   } catch (error) {
-    console.error("Diagnosis Error:", error);
+    // console.error("Diagnosis Error:", error);
     res.status(500).json({
       error: "Internal Server Error",
     });
