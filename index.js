@@ -2,10 +2,17 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import diagnoseRoutes from "./app/routes/diagnose.routes.js";
+import cors from "cors";
+
+import dns from "dns";
+dns.setDefaultResultOrder("ipv4first");
 
 dotenv.config();
 
+
 const app = express();
+
+app.use(cors());
 app.use(express.json());
 
 app.use("/api", diagnoseRoutes);

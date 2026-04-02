@@ -1,9 +1,6 @@
 import Diagnosis from "../models/Diagnosis.js";
 import { OpenRouter } from '@openrouter/sdk';
-// import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// import Diagnosis from "../models/Diagnosis.js"; 
 
 // Basic fallback rule-based logic
 const basicRules = (symptoms) => {
@@ -23,7 +20,10 @@ const basicRules = (symptoms) => {
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+
 export const getDiagnosis = async (req, res) => {
+  console.log("diagnosis runs");
+
   try {
     const { symptoms, age, gender, duration } = req.body;
 
@@ -31,7 +31,7 @@ export const getDiagnosis = async (req, res) => {
       return res.status(400).json({ error: "Symptoms are required" });
     }
 
-    // 🔥 Strong system prompt (VERY IMPORTANT)
+    // 🔥 System prompt
     const systemPrompt = `
 You are a medical assistant AI.
 
@@ -75,6 +75,7 @@ Patient Details:
 Provide diagnosis.
 `;
 
+    // 🔥 API call
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -83,17 +84,13 @@ Provide diagnosis.
       },
       body: JSON.stringify({
         model: "google/gemma-3-4b-it:free",
-       messages: [
-  {
-    role: "user",
-    content: `
-${systemPrompt}
-
-${userPrompt}
-    `
-  }
-],
-        temperature: 0.3
+        messages: [
+          {
+            role: "user",
+            content: `${systemPrompt}\n\n${userPrompt}`,
+          },
+        ],
+        temperature: 0.3,
       }),
     });
 
@@ -102,29 +99,71 @@ ${userPrompt}
     if (data.error) {
       return res.status(500).json({
         error: data.error.message,
-        details: data.error
+        details: data.error,
       });
     }
 
-    const output = data.choices[0].message.content;
-    // console.log(output)
-    // Try parsing JSON safely
+    const output = data.choices?.[0]?.message?.content;
+    console.log(output)
+    // 🔥 Safe JSON parsing
+    // let parsed;
+    // try {
+    //   parsed = await JSON.parse(output);
+    // } catch (err) {
+    //   parsed = { raw: output }; // fallback
+    // }
+
     let parsed;
-    try {
-      parsed = JSON.parse(output);
-    } catch (err) {
-      parsed = { raw: output }; // fallback if model breaks format
+
+try {
+  let clean = output;
+
+  // ✅ Step 1: Remove ```json and ```
+  clean = clean.replace(/```json\s*/i, "").replace(/```$/, "").trim();
+
+  // ✅ Step 2: Remove unwanted newlines at start/end
+  clean = clean.trim();
+
+  // ✅ Step 3: Parse safely
+  parsed = JSON.parse(clean);
+
+} catch (err) {
+  console.error("❌ Parsing failed:", err.message);
+
+  parsed = {
+    raw: output,
+    possible_conditions: [],
+    recommended_steps: [],
+    severity: "Unknown",
+    disclaimer: "Consult a qualified doctor",
+  };
+}
+
+    // ✅ SAVE TO DATABASE (only if valid structure)
+    console.log("at first step",parsed)
+    if (parsed?.possible_conditions) {
+      await Diagnosis.create({
+        symptoms,
+        result: parsed.possible_conditions.map((c) => ({
+          condition: c.name,
+          probability: c.probability,
+          nextSteps:
+            parsed.recommended_steps?.join(", ") ||
+            "Consult a qualified doctor",
+        })),
+      });
     }
 
+    // ✅ Final response
     res.json({
       success: true,
-      diagnosis: parsed
+      diagnosis: parsed,
     });
 
   } catch (error) {
     console.error("Diagnosis Error:", error);
     res.status(500).json({
-      error: "Internal Server Error"
+      error: "Internal Server Error",
     });
   }
 };
