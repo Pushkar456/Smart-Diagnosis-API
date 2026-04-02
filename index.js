@@ -21,7 +21,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.error(err));
 
-app.listen(3000, () => console.log("Server running on port 3000"));
+app.listen(process.env.PORT || 5000, () => console.log("Server running on port 3000"));
 
 // // First API call with reasoning
 // let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
